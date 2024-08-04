@@ -1,0 +1,36 @@
+FROM ghcr.io/graalvm/native-image-community:22-muslib as build
+
+# Install necessary tools
+RUN microdnf install wget 
+RUN microdnf install xz
+
+# Install maven for build the spring boot application
+RUN wget https://dlcdn.apache.org/maven/maven-3/3.9.8/binaries/apache-maven-3.9.8-bin.tar.gz
+RUN tar xvf apache-maven-3.9.8-bin.tar.gz
+
+# Set up the environment variables needed to run the Maven command.
+ENV M2_HOME=/app/apache-maven-3.9.8
+ENV M2=$M2_HOME/bin
+ENV PATH=$M2:$PATH
+
+# Install UPX (Ultimate Packer for eXecutables) to compress the executable binary and reduce its size.
+RUN wget https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz
+RUN tar xvf upx-4.2.4-amd64_linux.tar.xz
+
+# Set up the environment variables required to run the UPX command.
+ENV UPX_HOME=/app/upx-4.2.4-amd64_linux
+ENV PATH=$UPX_HOME:$PATH
+
+#Copy the spring boot source code into container
+RUN mkdir -p /app/spring-boot-rest-api-app
+COPY spring-boot-rest-api-app /app/spring-boot-rest-api-app
+
+#Compile the native image
+RUN cd /app/spring-boot-rest-api-app && mvn -Pnative native:compile
+
+#Compressed binary file
+RUN upx -7 -k /app/spring-boot-rest-api-app/target/app-native-binary
+
+WORKDIR /app
+
+ENTRYPOINT ["/bin/bash"]

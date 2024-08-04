@@ -1,0 +1,47 @@
+# First stage: Build the application
+FROM ghcr.io/graalvm/native-image-community:22-muslib as build
+
+# Install necessary tools (if any)
+RUN microdnf install wget
+
+RUN wget https://dlcdn.apache.org/maven/maven-3/3.9.8/binaries/apache-maven-3.9.8-bin.tar.gz
+RUN tar xvf apache-maven-3.9.8-bin.tar.gz
+
+ENV M2_HOME=/app/apache-maven-3.9.8
+ENV M2=$M2_HOME/bin
+ENV PATH=$M2:$PATH
+
+RUN microdnf install xz
+RUN wget https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz
+RUN tar xvf upx-4.2.4-amd64_linux.tar.xz
+
+ENV UPX_HOME=/app/upx-4.2.4-amd64_linux
+ENV PATH=$UPX_HOME:$PATH
+
+RUN mkdir -p /app/spring-boot-rest-api-app
+COPY spring-boot-rest-api-app /app/spring-boot-rest-api-app
+
+RUN cd /app/spring-boot-rest-api-app && mvn -Pnative native:compile
+
+RUN upx -7 -k /app/spring-boot-rest-api-app/target/app-native-binary
+
+WORKDIR /app
+
+# # Second stage: Create the runtime image
+FROM amd64/alpine
+
+# Set the working directory
+WORKDIR /app
+
+# # Copy the built application from the first stage
+COPY --from=build /app/spring-boot-rest-api-app/target/app-native-binary .
+
+RUN ls -l /app
+
+EXPOSE 8080
+
+# # Command to run the application
+ENTRYPOINT ["/app/app-native-binary"]
+
+
+
