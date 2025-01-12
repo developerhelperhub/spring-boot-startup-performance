@@ -20,3 +20,22 @@ Use the docker image inspect command to get detailed information about the image
 ```shell
 docker image inspect ghcr.io/graalvm/native-image-community:22
 ```
+
+
+## Temproary compile the spring boot application
+Change directory into "spring-boot-startup-performance" folder
+```shell
+docker run --rm -it --entrypoint /bin/bash -v $PWD:/tmp developerhelperhub/graalvm-22-muslib-maven
+
+cd spring-boot-rest-api-app/
+
+mvn -Pnative native:compile
+
+cd target 
+ 
+./app-native-binary &
+
+microdnf install curl  # Intall curl command
+
+curl http://localhost:8080/hello
+ ```
